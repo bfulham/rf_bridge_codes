@@ -1,22 +1,27 @@
-add_code:
-  name: Add RF code
+learn_code:
+  name: Learn RF code
   description: >-
-    Save a named raw RF code (paste the B0-format string you got from the
-    B1 converter tool after capturing it in the ESPHome logs). Creates a
+    Put the bridge into listening mode, wait up to 30 seconds for you to
+    press a button on your remote, then save it under this name. Creates a
     button entity for it.
   fields:
     name:
       name: Name
-      description: A friendly name for this code, e.g. "Fan light" or "Fan off".
+      description: A friendly name for this code, e.g. "Fan light".
       required: true
       example: "Fan light"
       selector:
         text:
-    code:
-      name: Raw code
-      description: The B0-format raw hex string to send for this code.
+
+send_code:
+  name: Send RF code
+  description: Send a saved RF code by name.
+  fields:
+    name:
+      name: Name
+      description: The name of the code to send.
       required: true
-      example: "AAA5070008001000ABC12355"
+      example: "Fan light"
       selector:
         text:
 
@@ -32,16 +37,23 @@ delete_code:
       selector:
         text:
 
-send_code:
-  name: Send RF code
+add_code:
+  name: Add RF code manually
   description: >-
-    Send a previously saved RF code by name. Useful for calling from
-    scripts/automations without pressing the button entity directly.
+    Save a B0-format raw code you already have. You normally don't need
+    this - use Learn RF code instead.
   fields:
     name:
       name: Name
-      description: The name of the code to send.
+      description: A friendly name for this code.
       required: true
       example: "Fan light"
+      selector:
+        text:
+    code:
+      name: Raw code
+      description: The B0-format raw hex string to send for this code.
+      required: true
+      example: "AAB0220408022403FB01011F8B38191A191A1A1A1A19191A1A191A1A19191A191A1A191A1955"
       selector:
         text:

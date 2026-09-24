@@ -1,28 +1,47 @@
 # RF Bridge Codes
 
-A small Home Assistant custom integration for managing named raw RF codes
-captured from a Sonoff RF Bridge running the Portisch/`RF-Bridge-OB38S003`
-firmware via ESPHome's `rf_bridge` component.
+A Home Assistant integration that **learns, saves and sends RF remote codes**
+through a Sonoff RF Bridge running the Portisch `RF-Bridge-OB38S003`
+firmware and ESPHome.
 
-It doesn't do RF capture itself (Portisch's bucket-sniffing output only
-shows up in the ESPHome logs, not as an HA event), but once you've got a
-B0-format code - via the ESPHome logs and the
-[B1 converter tool](https://jonajona.nl/convertB1.html) - this integration
-gives you:
+Name a code, press the button on your remote, done: you get a button
+entity that sends it. No log digging, no B1 converter. The integration
+captures the bucket-sniffing (B1) frame and converts it to a sendable B0
+code for you.
 
-- A place to save it under a friendly name, that survives restarts
-- A `button` entity per saved code, so it shows up on your dashboard like
-  a first-class device
-- Services (`rf_bridge_codes.add_code`, `.delete_code`, `.send_code`) so
-  scripts and automations can manage/trigger codes without touching YAML
+## 1. Add this to your RF Bridge's ESPHome YAML
 
-## Requirements
-
-Your ESPHome device needs a raw-send action exposed as a Home Assistant
-service. Add this to your `rf-bridge.yaml` (alongside your existing `api:`
-block) if you haven't already:
+Add the `debug:` block to your existing `uart:` section, and the two
+actions to your `api:` section, then install the update on the bridge.
 
 ```yaml
+uart:
+  # ... keep your existing tx_pin / rx_pin / baud_rate lines ...
+  debug:
+    direction: RX
+    after:
+      bytes: 512
+      timeout: 20ms
+    sequence:
+      - if:
+          condition:
+            lambda: |-
+              for (size_t i = 0; i + 1 < bytes.size(); i++)
+                if (bytes[i] == 0xAA && bytes[i + 1] == 0xB1) return true;
+              return false;
+          then:
+            - homeassistant.event:
+                event: esphome.rf_bridge_bucket
+                data:
+                  raw: !lambda |-
+                    std::string hex;
+                    char b[3];
+                    for (uint8_t c : bytes) {
+                      snprintf(b, sizeof(b), "%02X", c);
+                      hex += b;
+                    }
+                    return hex;
+
 api:
   actions:
     - action: send_raw_code
@@ -31,49 +50,46 @@ api:
       then:
         - rf_bridge.send_raw:
             raw: !lambda 'return raw;'
+    - action: start_bucket_sniffing
+      then:
+        - rf_bridge.start_bucket_sniffing:
 ```
 
-This exposes a service like `esphome.rf_bridge_send_raw_code` (the exact
-name depends on your device's `esphome: name:`) - that's what you'll point
-this integration at during setup.
+The `debug:` block forwards the bridge's captured codes to Home Assistant,
+`send_raw_code` sends them, and `start_bucket_sniffing` puts the bridge
+into listening mode when you learn a code.
 
-## Installation
+## 2. Install the integration
 
-### Via HACS (custom repository)
+**HACS:** HACS → ⋮ → **Custom repositories** → add
+`https://github.com/bfulham/rf_bridge_codes` as an **Integration** →
+install **RF Bridge Codes** → restart Home Assistant.
 
-1. Push this folder to your own GitHub repository
-2. In HACS: **Integrations → ⋮ menu → Custom repositories**, add your repo
-   URL with category **Integration**
-3. Install **RF Bridge Codes** from HACS, then restart Home Assistant
+**Manually:** copy `custom_components/rf_bridge_codes/` into your Home
+Assistant `config/custom_components/` folder and restart.
 
-### Manually
+Then **Settings → Devices & services → Add integration → RF Bridge Codes**.
+Your bridge's send action is picked for you. Just press Submit.
 
-Copy `custom_components/rf_bridge_codes/` into your Home Assistant
-`config/custom_components/` folder, then restart Home Assistant.
+## 3. Learn a code
 
-## Setup
+**Settings → Devices & services → RF Bridge Codes → Configure → Learn a
+new code**. Type a name (e.g. `Fan light`), press Submit, then press the
+button on your remote within 30 seconds.
 
-**Settings → Devices & Services → Add Integration → RF Bridge Codes**
+A `button.…_fan_light` entity appears. Press it to send the code, or put
+it on a dashboard.
 
-Enter the send service from the Requirements section above (e.g.
-`esphome.rf_bridge_send_raw_code`) and the parameter name it expects
-(`raw`, unless you named it something else in your YAML).
+To remove one: **Configure → Delete a code**.
 
-## Usage
+## Actions (for scripts and automations)
 
-**Add a code** (Developer Tools → Actions, or from a script/automation):
-
-```yaml
-action: rf_bridge_codes.add_code
-data:
-  name: "Fan light"
-  code: "AAA5070008001000ABC12355"
-```
-
-A `button.fan_light` entity appears immediately - press it to transmit
-that code.
-
-**Send a code from an automation** without needing the button entity:
+| Action | What it does |
+| --- | --- |
+| `rf_bridge_codes.learn_code` | Waits for a remote press and saves it under `name` |
+| `rf_bridge_codes.send_code` | Sends the saved code called `name` |
+| `rf_bridge_codes.delete_code` | Deletes the saved code called `name` |
+| `rf_bridge_codes.add_code` | Saves a B0 `code` you already have under `name` |
 
 ```yaml
 action: rf_bridge_codes.send_code
@@ -81,20 +97,18 @@ data:
   name: "Fan light"
 ```
 
-**Delete a code:**
+## Troubleshooting
 
-```yaml
-action: rf_bridge_codes.delete_code
-data:
-  name: "Fan light"
-```
+- **"No RF signal received"**: hold the remote close to the bridge and
+  press the button a couple of times. Check the ESPHome logs for
+  `Received RFBridge Bucket`. If that never appears, the bridge isn't
+  running Portisch firmware with bucket sniffing.
+- **The learned code doesn't work**: learn it again, holding the remote
+  button down a little longer so the bridge sees several repeats.
 
 ## Notes
 
 - Codes are stored in `.storage/rf_bridge_codes_<entry_id>` and survive
   restarts.
-- Only one set of services is registered even if you configure multiple
-  RF Bridge Codes entries (e.g. for more than one bridge) - `add_code` /
-  `delete_code` currently apply to the first configured entry. If you run
-  multiple bridges and want this scoped per-entry, that's the first thing
-  worth extending.
+- With more than one bridge, the actions above use the first one you set
+  up. Learning and deleting from **Configure** always use that bridge.

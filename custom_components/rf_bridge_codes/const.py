@@ -8,12 +8,24 @@ CONF_RAW_PARAM = "raw_param"
 DEFAULT_SEND_SERVICE = "esphome.rf_bridge_send_raw_code"
 DEFAULT_RAW_PARAM = "raw"
 
+# ESPHome api: actions are exposed as esphome.<device>_<action>; the sniff
+# action is found by swapping this suffix on the configured send service
+SEND_SERVICE_SUFFIX = "_send_raw_code"
+SNIFF_SERVICE_SUFFIX = "_start_bucket_sniffing"
+
+# fired by the uart debug: block in the ESPHome YAML (see README)
+EVENT_BUCKET = "esphome.rf_bridge_bucket"
+ATTR_RAW = "raw"
+
+CAPTURE_TIMEOUT = 30
+B0_REPEATS = 8
+
 STORAGE_VERSION = 1
-STORAGE_KEY = "rf_bridge_codes"
 
 SERVICE_ADD_CODE = "add_code"
 SERVICE_DELETE_CODE = "delete_code"
 SERVICE_SEND_CODE = "send_code"
+SERVICE_LEARN_CODE = "learn_code"
 
 ATTR_NAME = "name"
 ATTR_CODE = "code"

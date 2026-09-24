@@ -3,10 +3,9 @@
     "step": {
       "user": {
         "title": "Set up RF Bridge Codes",
-        "description": "Point this at the raw-send service your ESPHome RF Bridge device exposes (the custom api: actions: entry you added to its YAML).",
+        "description": "Pick your RF Bridge's send action. If the list is empty, add the ESPHome YAML from the README to your bridge first.",
         "data": {
-          "send_service": "Send service (domain.service)",
-          "raw_param": "Raw code parameter name"
+          "send_service": "RF Bridge send action"
         }
       }
     },
@@ -14,18 +13,40 @@
       "invalid_service": "This must be a domain.service string, e.g. esphome.rf_bridge_send_raw_code"
     },
     "abort": {
-      "already_configured": "This send service is already configured"
+      "already_configured": "This RF Bridge is already set up"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "RF Bridge Codes options",
+        "title": "RF Bridge Codes",
+        "menu_options": {
+          "learn": "Learn a new code",
+          "delete": "Delete a code"
+        }
+      },
+      "learn": {
+        "title": "Learn a new code",
+        "description": "Give the code a name, press Submit, then press the button on your remote.",
         "data": {
-          "send_service": "Send service (domain.service)",
-          "raw_param": "Raw code parameter name"
+          "name": "Name"
+        }
+      },
+      "delete": {
+        "title": "Delete a code",
+        "data": {
+          "name": "Code"
         }
       }
+    },
+    "progress": {
+      "capture": "Press the button on your remote now (waiting up to {timeout} seconds to learn \"{name}\")."
+    },
+    "error": {
+      "empty_name": "Enter a name"
+    },
+    "abort": {
+      "capture_failed": "Couldn't learn the code: {error}. Hold the remote close to the bridge and try again. If it keeps failing, check the ESPHome YAML in the README."
     }
   }
 }
