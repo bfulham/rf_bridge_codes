@@ -11,10 +11,17 @@ code for you.
 
 ## 1. Add this to your RF Bridge's ESPHome YAML
 
-Add the `debug:` block to your existing `uart:` section, and the two
-actions to your `api:` section, then install the update on the bridge.
+Add the `on_boot:` step to your `esphome:` section, the `debug:` block to
+your existing `uart:` section, and the two actions to your `api:` section.
+Then install the update on the bridge.
 
 ```yaml
+esphome:
+  # ... keep your existing name etc. ...
+  on_boot:
+    - delay: 1s
+    - rf_bridge.start_bucket_sniffing
+
 uart:
   # ... keep your existing tx_pin / rx_pin / baud_rate lines ...
   debug:
@@ -55,9 +62,10 @@ api:
         - rf_bridge.start_bucket_sniffing:
 ```
 
-The `debug:` block forwards the bridge's captured codes to Home Assistant,
-`send_raw_code` sends them, and `start_bucket_sniffing` puts the bridge
-into listening mode when you learn a code.
+`on_boot` puts the bridge into listening mode at startup. The `debug:`
+block forwards the codes it hears to Home Assistant. `send_raw_code`
+sends codes, and `start_bucket_sniffing` turns listening mode back on
+when you learn a code.
 
 ## 2. Install the integration
 
@@ -94,6 +102,37 @@ Each code is sent 3 times back to back by default. If one press toggles
 something twice (e.g. a light goes off then straight back on), lower it.
 If codes are often missed, raise it. The setting is under
 **Configure → Settings** and applies to all saved codes.
+
+## Seeing real remote presses
+
+When someone presses a real remote button that matches a saved code, the
+integration shows it on the RF Bridge Codes device:
+
+- **Last button seen** (sensor): the name of the last saved code heard,
+  with a `last_seen` time. Good for dashboards.
+- **Remote button** (event): fires once per press, even when the same
+  button is pressed twice in a row. Use this one in automations:
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: event.rf_bridge_codes_remote_button  # check the exact id on the device page
+    not_from: unavailable
+conditions:
+  - condition: state
+    entity_id: event.rf_bridge_codes_remote_button
+    attribute: event_type
+    state: "Fan light"
+```
+
+Holding a button down counts as one press. When you save from the
+picker, the other codes you were offered are remembered too, so a press is
+still recognised if the bridge only catches the "still held" burst. For
+codes saved before version 0.5.0, learn them again to get this.
+
+The bridge has to be in listening mode for this to work. The `on_boot`
+step in the ESPHome YAML turns it on at startup, and learning turns it on
+again.
 
 ## Actions (for scripts and automations)
 

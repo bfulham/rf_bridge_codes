@@ -100,3 +100,15 @@ def with_repeats(code: str, repeats: int) -> str:
     if not code.startswith("AAB0") or len(code) < 10:
         return code
     return f"{code[:8]}{repeats:02X}{code[10:]}"
+
+
+def b0_pulse_data(code: str) -> bytes | None:
+    """The pulse part of a B0 code, for matching against received frames."""
+    digits = re.sub(r"\s", "", code)
+    try:
+        data = bytes.fromhex(digits)
+    except ValueError:
+        return None
+    if len(data) < 6 or data[:2] != b"\xaa\xb0" or data[-1] != 0x55:
+        return None
+    return data[5 + data[3] * 2 : -1] or None

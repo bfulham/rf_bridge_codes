@@ -207,7 +207,9 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
     async def async_step_save(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        await self._bridge.async_add(self._name, self._codes[self._tried])
+        code = self._codes[self._tried]
+        others = [other for other in self._codes if other != code]
+        await self._bridge.async_add(self._name, code, others)
         return self.async_create_entry(data=dict(self._entry.options))
 
     async def async_step_capture_failed(

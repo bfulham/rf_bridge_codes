@@ -41,3 +41,7 @@ ATTR_CODE = "code"
 
 SIGNAL_CODE_ADDED = f"{DOMAIN}_code_added"
 SIGNAL_CODE_REMOVED = f"{DOMAIN}_code_removed"
+SIGNAL_CODE_SEEN = f"{DOMAIN}_code_seen"
+
+# bursts of the same button closer together than this count as one press
+PRESS_GAP = 1.0
