@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up RF Bridge Codes",
+        "description": "Point this at the raw-send service your ESPHome RF Bridge device exposes (the custom api: actions: entry you added to its YAML).",
+        "data": {
+          "send_service": "Send service (domain.service)",
+          "raw_param": "Raw code parameter name"
+        }
+      }
+    },
+    "error": {
+      "invalid_service": "This must be a domain.service string, e.g. esphome.rf_bridge_send_raw_code"
+    },
+    "abort": {
+      "already_configured": "This send service is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "RF Bridge Codes options",
+        "data": {
+          "send_service": "Send service (domain.service)",
+          "raw_param": "Raw code parameter name"
+        }
+      }
+    }
+  }
+}

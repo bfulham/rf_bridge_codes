@@ -1,0 +1,47 @@
+add_code:
+  name: Add RF code
+  description: >-
+    Save a named raw RF code (paste the B0-format string you got from the
+    B1 converter tool after capturing it in the ESPHome logs). Creates a
+    button entity for it.
+  fields:
+    name:
+      name: Name
+      description: A friendly name for this code, e.g. "Fan light" or "Fan off".
+      required: true
+      example: "Fan light"
+      selector:
+        text:
+    code:
+      name: Raw code
+      description: The B0-format raw hex string to send for this code.
+      required: true
+      example: "AAA5070008001000ABC12355"
+      selector:
+        text:
+
+delete_code:
+  name: Delete RF code
+  description: Remove a saved RF code and its button entity.
+  fields:
+    name:
+      name: Name
+      description: The name of the code to delete.
+      required: true
+      example: "Fan light"
+      selector:
+        text:
+
+send_code:
+  name: Send RF code
+  description: >-
+    Send a previously saved RF code by name. Useful for calling from
+    scripts/automations without pressing the button entity directly.
+  fields:
+    name:
+      name: Name
+      description: The name of the code to send.
+      required: true
+      example: "Fan light"
+      selector:
+        text:
