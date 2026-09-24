@@ -80,3 +80,11 @@ def b1_to_b0(frame: bytes, repeats: int = 8) -> str:
     if len(payload) > 0xFF:
         raise ValueError("Captured code is too long to send as a B0 frame")
     return f"AAB0{len(payload):02X}{payload.hex().upper()}55"
+
+
+def with_repeats(code: str, repeats: int) -> str:
+    """Set the repeat count of a B0 code (AA B0 <len> <n> <repeats> ...)."""
+    code = re.sub(r"\s", "", code).upper()
+    if not code.startswith("AAB0") or len(code) < 10:
+        return code
+    return f"{code[:8]}{repeats:02X}{code[10:]}"

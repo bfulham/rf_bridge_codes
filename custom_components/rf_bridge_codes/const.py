@@ -18,7 +18,11 @@ EVENT_BUCKET = "esphome.rf_bridge_bucket"
 ATTR_RAW = "raw"
 
 CAPTURE_TIMEOUT = 30
-B0_REPEATS = 8
+
+# how many times each B0 code is transmitted back to back; too many and some
+# receivers treat the tail as a second press (e.g. a light toggling twice)
+CONF_REPEATS = "repeats"
+DEFAULT_REPEATS = 3
 
 STORAGE_VERSION = 1
 

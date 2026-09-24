@@ -74,13 +74,25 @@ Your bridge's send action is picked for you. Just press Submit.
 ## 3. Learn a code
 
 **Settings → Devices & services → RF Bridge Codes → Configure → Learn a
-new code**. Type a name (e.g. `Fan light`), press Submit, then press the
-button on your remote within 30 seconds.
+new code**. Type a name (e.g. `Fan light`), press Submit, then give the
+button on your remote one quick press within 30 seconds.
 
-A `button.…_fan_light` entity appears. Press it to send the code, or put
-it on a dashboard.
+Next, choose **Send it now to test**. If the device responds, choose
+**Save**. If it doesn't, choose **Learn it again**. Some remotes send a
+different "still held" code after the first one, and the bridge sometimes
+only catches that one. Try again with a quick, single press.
 
-To remove one: **Configure → Delete a code**.
+Once saved, a `button.…_fan_light` entity appears. Press it to send the
+code, or put it on a dashboard.
+
+To remove a code: **Configure → Delete a code**.
+
+### Repeats
+
+Each code is sent 3 times back to back by default. If one press toggles
+something twice (e.g. a light goes off then straight back on), lower it.
+If codes are often missed, raise it. The setting is under
+**Configure → Settings** and applies to all saved codes.
 
 ## Actions (for scripts and automations)
 
@@ -103,8 +115,11 @@ data:
   press the button a couple of times. Check the ESPHome logs for
   `Received RFBridge Bucket`. If that never appears, the bridge isn't
   running Portisch firmware with bucket sniffing.
-- **The learned code doesn't work**: learn it again, holding the remote
-  button down a little longer so the bridge sees several repeats.
+- **The learned code doesn't work**: learn it again with a quick press.
+  The bridge may have caught the remote's "still held" code instead of
+  the first one.
+- **One press toggles twice**: lower **Repeats** under Configure →
+  Settings.
 
 ## Notes
 

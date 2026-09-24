@@ -1,7 +1,7 @@
 """Config flow for RF Bridge Codes.
 
 Setup auto-detects the ESPHome send action. The options flow ("Configure"
-on the integration) is where codes are learned and deleted.
+on the integration) is where codes are learned, tested and deleted.
 """
 from __future__ import annotations
 
@@ -14,6 +14,9 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -23,8 +26,10 @@ from .const import (
     ATTR_NAME,
     CAPTURE_TIMEOUT,
     CONF_RAW_PARAM,
+    CONF_REPEATS,
     CONF_SEND_SERVICE,
     DEFAULT_RAW_PARAM,
+    DEFAULT_REPEATS,
     DEFAULT_SEND_SERVICE,
     DOMAIN,
     SEND_SERVICE_SUFFIX,
@@ -90,12 +95,13 @@ class RfBridgeCodesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
-    """Learn a new code, or delete a saved one."""
+    """Learn, test and delete codes, and change the repeat count."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._entry = config_entry
         self._name: str | None = None
         self._capture: asyncio.Task[str] | None = None
+        self._code: str | None = None
         self._error = ""
 
     @property
@@ -105,7 +111,9 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        menu = ["learn", "delete"] if self._bridge.codes else ["learn"]
+        menu = ["learn", "delete", "settings"]
+        if not self._bridge.codes:
+            menu.remove("delete")
         return self.async_show_menu(step_id="init", menu_options=menu)
 
     async def async_step_learn(
@@ -144,17 +152,32 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
 
         capture, self._capture = self._capture, None
         try:
-            code = capture.result()
+            self._code = capture.result()
         except HomeAssistantError as err:
             self._error = str(err)
             return self.async_show_progress_done(next_step_id="capture_failed")
+        return self.async_show_progress_done(next_step_id="review")
 
-        await self._bridge.async_add(self._name, code)
-        return self.async_show_progress_done(next_step_id="capture_done")
-
-    async def async_step_capture_done(
+    async def async_step_review(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        """Let the user try the captured code before saving it."""
+        return self.async_show_menu(
+            step_id="review",
+            menu_options=["test", "save", "capture"],
+            description_placeholders={"name": self._name},
+        )
+
+    async def async_step_test(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        await self._bridge.async_send_raw(self._code)
+        return await self.async_step_review()
+
+    async def async_step_save(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        await self._bridge.async_add(self._name, self._code)
         return self.async_create_entry(data=dict(self._entry.options))
 
     async def async_step_capture_failed(
@@ -179,3 +202,28 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
             }
         )
         return self.async_show_form(step_id="delete", data_schema=schema)
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                data={
+                    **self._entry.options,
+                    CONF_REPEATS: int(user_input[CONF_REPEATS]),
+                }
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_REPEATS,
+                    default=self._entry.options.get(CONF_REPEATS, DEFAULT_REPEATS),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1, max=20, step=1, mode=NumberSelectorMode.BOX
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="settings", data_schema=schema)

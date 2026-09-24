@@ -20,16 +20,17 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
-from .codec import b1_to_b0, best_frame, parse_bucket_frames
+from .codec import b1_to_b0, best_frame, parse_bucket_frames, with_repeats
 from .const import (
     ATTR_CODE,
     ATTR_NAME,
     ATTR_RAW,
-    B0_REPEATS,
     CAPTURE_TIMEOUT,
     CONF_RAW_PARAM,
+    CONF_REPEATS,
     CONF_SEND_SERVICE,
     DEFAULT_RAW_PARAM,
+    DEFAULT_REPEATS,
     DOMAIN,
     EVENT_BUCKET,
     SEND_SERVICE_SUFFIX,
@@ -61,6 +62,7 @@ class RfBridge:
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
+        self.entry = entry
         self.entry_id = entry.entry_id
         self.send_service: str = entry.data[CONF_SEND_SERVICE]
         self.raw_param: str = entry.data.get(CONF_RAW_PARAM, DEFAULT_RAW_PARAM)
@@ -68,6 +70,10 @@ class RfBridge:
             hass, STORAGE_VERSION, f"rf_bridge_codes_{entry.entry_id}"
         )
         self.codes: dict[str, str] = {}
+
+    @property
+    def repeats(self) -> int:
+        return int(self.entry.options.get(CONF_REPEATS, DEFAULT_REPEATS))
 
     @property
     def sniff_service(self) -> str | None:
@@ -99,7 +105,12 @@ class RfBridge:
         code = self.codes.get(name)
         if code is None:
             raise HomeAssistantError(f"No RF code named '{name}' is saved")
-        await self._async_call(self.send_service, {self.raw_param: code})
+        await self.async_send_raw(code)
+
+    async def async_send_raw(self, code: str) -> None:
+        await self._async_call(
+            self.send_service, {self.raw_param: with_repeats(code, self.repeats)}
+        )
 
     async def async_capture(self, timeout: float = CAPTURE_TIMEOUT) -> str:
         """Wait for the next remote press and return it as a B0 code."""
@@ -111,7 +122,7 @@ class RfBridge:
             if frame is None or result.done():
                 return
             try:
-                result.set_result(b1_to_b0(frame, B0_REPEATS))
+                result.set_result(b1_to_b0(frame, self.repeats))
             except ValueError as err:
                 result.set_exception(HomeAssistantError(str(err)))
 

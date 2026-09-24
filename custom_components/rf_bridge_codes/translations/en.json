@@ -22,7 +22,8 @@
         "title": "RF Bridge Codes",
         "menu_options": {
           "learn": "Learn a new code",
-          "delete": "Delete a code"
+          "delete": "Delete a code",
+          "settings": "Settings"
         }
       },
       "learn": {
@@ -36,6 +37,22 @@
         "title": "Delete a code",
         "data": {
           "name": "Code"
+        }
+      },
+      "review": {
+        "title": "Got it",
+        "description": "Captured a code for \"{name}\". Send it to check it works before saving. If it doesn't, learn it again: a quick, single press works best.",
+        "menu_options": {
+          "test": "Send it now to test",
+          "save": "Save",
+          "capture": "Learn it again"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "How many times each code is sent back to back. If a light toggles twice from one press, lower this. If codes are often missed, raise it.",
+        "data": {
+          "repeats": "Repeats"
         }
       }
     },
