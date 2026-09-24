@@ -74,13 +74,14 @@ Your bridge's send action is picked for you. Just press Submit.
 ## 3. Learn a code
 
 **Settings → Devices & services → RF Bridge Codes → Configure → Learn a
-new code**. Type a name (e.g. `Fan light`), press Submit, then give the
-button on your remote one quick press within 30 seconds.
+new code**. Type a name (e.g. `Fan light`), press Submit, then press the
+button on your remote once within 30 seconds.
 
-Next, choose **Send it now to test**. If the device responds, choose
-**Save**. If it doesn't, choose **Learn it again**. Some remotes send a
-different "still held" code after the first one, and the bridge sometimes
-only catches that one. Try again with a quick, single press.
+The integration keeps listening for a second after the first code
+arrives, because many remotes send a different "still held" code after
+the first one. If it heard more than one code, you get **Try code 1**,
+**Try code 2** and so on. Try each one, then press **Save** to keep the
+one you tried last. If none of them work, choose **Listen again**.
 
 Once saved, a `button.…_fan_light` entity appears. Press it to send the
 code, or put it on a dashboard.
@@ -98,7 +99,7 @@ If codes are often missed, raise it. The setting is under
 
 | Action | What it does |
 | --- | --- |
-| `rf_bridge_codes.learn_code` | Waits for a remote press and saves it under `name` |
+| `rf_bridge_codes.learn_code` | Waits for a remote press and saves the first code heard under `name` |
 | `rf_bridge_codes.send_code` | Sends the saved code called `name` |
 | `rf_bridge_codes.delete_code` | Deletes the saved code called `name` |
 | `rf_bridge_codes.add_code` | Saves a B0 `code` you already have under `name` |
@@ -115,9 +116,9 @@ data:
   press the button a couple of times. Check the ESPHome logs for
   `Received RFBridge Bucket`. If that never appears, the bridge isn't
   running Portisch firmware with bucket sniffing.
-- **The learned code doesn't work**: learn it again with a quick press.
-  The bridge may have caught the remote's "still held" code instead of
-  the first one.
+- **The learned code doesn't work**: learn it again and try each code
+  offered. If only one is offered and it doesn't work, the bridge probably
+  missed the first burst, so choose **Listen again**.
 - **One press toggles twice**: lower **Repeats** under Configure →
   Settings.
 

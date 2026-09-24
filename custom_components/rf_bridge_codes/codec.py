@@ -8,7 +8,6 @@ B0 frame:  AA B0 <len> <n> <repeats> <bucket table> <pulse data> 55
 """
 from __future__ import annotations
 
-from collections import Counter
 import re
 
 B1_MAX_BUCKETS = 8
@@ -47,11 +46,25 @@ def parse_bucket_frames(raw_hex: str) -> list[bytes]:
     return frames
 
 
-def best_frame(frames: list[bytes]) -> bytes | None:
-    """The frame seen most often in a burst (remotes repeat each press)."""
-    if not frames:
-        return None
-    return Counter(frames).most_common(1)[0][0]
+def pulse_data(frame: bytes) -> bytes:
+    """The pulse part of a parsed B1 frame, trimmed to a single repeat."""
+    return single_repeat(frame[1 + frame[0] * 2 :])
+
+
+def distinct_frames(frames: list[bytes]) -> list[bytes]:
+    """Drop frames carrying the same signal as an earlier one, keeping order.
+
+    Bucket timings jitter a little between bursts, so frames are compared
+    by their pulse data only.
+    """
+    seen: set[bytes] = set()
+    unique: list[bytes] = []
+    for frame in frames:
+        pulses = pulse_data(frame)
+        if pulses not in seen:
+            seen.add(pulses)
+            unique.append(frame)
+    return unique
 
 
 def single_repeat(pulses: bytes) -> bytes:
@@ -74,8 +87,7 @@ def single_repeat(pulses: bytes) -> bytes:
 
 def b1_to_b0(frame: bytes, repeats: int = 8) -> str:
     """Convert a parsed B1 frame into a sendable B0 hex string."""
-    table_end = 1 + frame[0] * 2
-    frame = frame[:table_end] + single_repeat(frame[table_end:])
+    frame = frame[: 1 + frame[0] * 2] + pulse_data(frame)
     payload = bytes([frame[0], repeats]) + frame[1:]
     if len(payload) > 0xFF:
         raise ValueError("Captured code is too long to send as a B0 frame")

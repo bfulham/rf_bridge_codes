@@ -18,6 +18,11 @@ EVENT_BUCKET = "esphome.rf_bridge_bucket"
 ATTR_RAW = "raw"
 
 CAPTURE_TIMEOUT = 30
+# keep listening this long after the first code: many remotes send a
+# different "still held" code after the first burst
+LISTEN_WINDOW = 1.0
+# most different codes offered to pick from after learning
+MAX_VARIANTS = 4
 
 # how many times each B0 code is transmitted back to back; too many and some
 # receivers treat the tail as a second press (e.g. a light toggling twice)

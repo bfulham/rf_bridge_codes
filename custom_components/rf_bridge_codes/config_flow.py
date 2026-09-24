@@ -100,8 +100,9 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._entry = config_entry
         self._name: str | None = None
-        self._capture: asyncio.Task[str] | None = None
-        self._code: str | None = None
+        self._capture: asyncio.Task[list[str]] | None = None
+        self._codes: list[str] = []
+        self._tried = 0
         self._error = ""
 
     @property
@@ -152,7 +153,8 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
 
         capture, self._capture = self._capture, None
         try:
-            self._code = capture.result()
+            self._codes = capture.result()
+            self._tried = 0
         except HomeAssistantError as err:
             self._error = str(err)
             return self.async_show_progress_done(next_step_id="capture_failed")
@@ -161,23 +163,51 @@ class RfBridgeCodesOptionsFlow(config_entries.OptionsFlow):
     async def async_step_review(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Let the user try the captured code before saving it."""
+        """Let the user try each captured code, then save the one that works."""
+        count = len(self._codes)
+        options = {
+            f"test_{i}": f"Try code {i + 1}" if count > 1 else "Try it"
+            for i in range(count)
+        }
+        options["save"] = f"Save code {self._tried + 1}" if count > 1 else "Save"
+        options["capture"] = "Listen again"
         return self.async_show_menu(
             step_id="review",
-            menu_options=["test", "save", "capture"],
-            description_placeholders={"name": self._name},
+            menu_options=options,
+            description_placeholders={
+                "name": self._name,
+                "tip": (
+                    f"Your remote sent {count} different codes. Try each one, "
+                    "then save the one that worked. Save uses the one you "
+                    "tried last."
+                    if count > 1
+                    else "Try it, then save it if it worked."
+                ),
+            },
         )
 
-    async def async_step_test(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        await self._bridge.async_send_raw(self._code)
+    async def _async_try(self, index: int) -> config_entries.ConfigFlowResult:
+        self._tried = index
+        await self._bridge.async_send_raw(self._codes[index])
         return await self.async_step_review()
+
+    # one step per offered code (up to MAX_VARIANTS)
+    async def async_step_test_0(self, user_input=None):
+        return await self._async_try(0)
+
+    async def async_step_test_1(self, user_input=None):
+        return await self._async_try(1)
+
+    async def async_step_test_2(self, user_input=None):
+        return await self._async_try(2)
+
+    async def async_step_test_3(self, user_input=None):
+        return await self._async_try(3)
 
     async def async_step_save(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        await self._bridge.async_add(self._name, self._code)
+        await self._bridge.async_add(self._name, self._codes[self._tried])
         return self.async_create_entry(data=dict(self._entry.options))
 
     async def async_step_capture_failed(

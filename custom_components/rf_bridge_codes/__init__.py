@@ -20,7 +20,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
-from .codec import b1_to_b0, best_frame, parse_bucket_frames, with_repeats
+from .codec import b1_to_b0, distinct_frames, parse_bucket_frames, with_repeats
 from .const import (
     ATTR_CODE,
     ATTR_NAME,
@@ -33,6 +33,8 @@ from .const import (
     DEFAULT_REPEATS,
     DOMAIN,
     EVENT_BUCKET,
+    LISTEN_WINDOW,
+    MAX_VARIANTS,
     SEND_SERVICE_SUFFIX,
     SERVICE_ADD_CODE,
     SERVICE_DELETE_CODE,
@@ -112,19 +114,22 @@ class RfBridge:
             self.send_service, {self.raw_param: with_repeats(code, self.repeats)}
         )
 
-    async def async_capture(self, timeout: float = CAPTURE_TIMEOUT) -> str:
-        """Wait for the next remote press and return it as a B0 code."""
-        result: asyncio.Future[str] = self.hass.loop.create_future()
+    async def async_capture(self, timeout: float = CAPTURE_TIMEOUT) -> list[str]:
+        """Wait for a remote press and return the B0 codes it sent.
+
+        Listens for LISTEN_WINDOW after the first code arrives, so a remote
+        that follows its first burst with a different "still held" code
+        gives back both, in the order they were heard.
+        """
+        frames: list[bytes] = []
+        first_heard = asyncio.Event()
 
         @callback
         def _on_bucket(event: Event) -> None:
-            frame = best_frame(parse_bucket_frames(event.data.get(ATTR_RAW, "")))
-            if frame is None or result.done():
-                return
-            try:
-                result.set_result(b1_to_b0(frame, self.repeats))
-            except ValueError as err:
-                result.set_exception(HomeAssistantError(str(err)))
+            received = parse_bucket_frames(event.data.get(ATTR_RAW, ""))
+            if received:
+                frames.extend(received)
+                first_heard.set()
 
         unsub = self.hass.bus.async_listen(EVENT_BUCKET, _on_bucket)
         try:
@@ -132,13 +137,24 @@ class RfBridge:
             if sniff and self.hass.services.has_service(*sniff.split(".", 1)):
                 await self._async_call(sniff, {})
             async with asyncio.timeout(timeout):
-                return await result
+                await first_heard.wait()
+            await asyncio.sleep(LISTEN_WINDOW)
         except TimeoutError as err:
             raise HomeAssistantError(
                 f"No RF signal received within {timeout:.0f} seconds"
             ) from err
         finally:
             unsub()
+
+        codes: list[str] = []
+        for frame in distinct_frames(frames)[:MAX_VARIANTS]:
+            try:
+                codes.append(b1_to_b0(frame, self.repeats))
+            except ValueError as err:
+                _LOGGER.warning("Skipping captured code: %s", err)
+        if not codes:
+            raise HomeAssistantError("The captured code is too long to send")
+        return codes
 
     async def _async_call(self, service: str, data: dict) -> None:
         if "." not in service:
@@ -176,7 +192,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def async_learn_code(call: ServiceCall) -> None:
         bridge = _first_bridge(hass)
-        await bridge.async_add(call.data[ATTR_NAME], await bridge.async_capture())
+        # no one to ask which variant works here, so use the first one heard
+        codes = await bridge.async_capture()
+        await bridge.async_add(call.data[ATTR_NAME], codes[0])
 
     # only register the services once, even if multiple bridges are configured
     if not hass.services.has_service(DOMAIN, SERVICE_ADD_CODE):

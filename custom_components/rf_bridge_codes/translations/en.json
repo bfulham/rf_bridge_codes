@@ -40,13 +40,8 @@
         }
       },
       "review": {
-        "title": "Got it",
-        "description": "Captured a code for \"{name}\". Send it to check it works before saving. If it doesn't, learn it again: a quick, single press works best.",
-        "menu_options": {
-          "test": "Send it now to test",
-          "save": "Save",
-          "capture": "Learn it again"
-        }
+        "title": "Heard \"{name}\"",
+        "description": "{tip}"
       },
       "settings": {
         "title": "Settings",
@@ -57,7 +52,7 @@
       }
     },
     "progress": {
-      "capture": "Press the button on your remote now (waiting up to {timeout} seconds to learn \"{name}\")."
+      "capture": "Press the button on your remote once now (waiting up to {timeout} seconds to learn \"{name}\")."
     },
     "error": {
       "empty_name": "Enter a name"
