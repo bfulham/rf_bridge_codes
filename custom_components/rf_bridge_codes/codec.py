@@ -54,8 +54,28 @@ def best_frame(frames: list[bytes]) -> bytes | None:
     return Counter(frames).most_common(1)[0][0]
 
 
+def single_repeat(pulses: bytes) -> bytes:
+    """Trim pulse data holding the same signal back to back down to one copy.
+
+    A long remote press can land two or more repeats in one B1 frame. Sending
+    that as-is transmits the command twice per repeat, so find the shortest
+    period the data repeats in full at least twice (a trailing partial copy
+    is allowed) and keep just one period.
+    """
+    for period in range(MIN_PULSE_BYTES, len(pulses) // 2 + 1):
+        copy = pulses[:period]
+        if all(
+            pulses[i : i + period] == copy[: len(pulses) - i]
+            for i in range(period, len(pulses), period)
+        ):
+            return copy
+    return pulses
+
+
 def b1_to_b0(frame: bytes, repeats: int = 8) -> str:
     """Convert a parsed B1 frame into a sendable B0 hex string."""
+    table_end = 1 + frame[0] * 2
+    frame = frame[:table_end] + single_repeat(frame[table_end:])
     payload = bytes([frame[0], repeats]) + frame[1:]
     if len(payload) > 0xFF:
         raise ValueError("Captured code is too long to send as a B0 frame")
